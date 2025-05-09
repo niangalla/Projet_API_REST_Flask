@@ -8,7 +8,7 @@ visitor_bp = Blueprint('visiteur', __name__)
 def get_prompt(id):
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
-    cur.execute("SELECT * FROM prompt WHERE id = %s AND statut = 'Activer'", (id,))
+    cur.execute("SELECT * FROM prompt WHERE id = %s AND statut = 'ACTIVER'", (id,))
     prompt = cur.fetchone()
     cur.close()
     conn.close()
@@ -21,7 +21,7 @@ def get_prompt(id):
 def list_activated_prompts():
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
-    cur.execute("SELECT * FROM prompt WHERE statut = 'Activer'")
+    cur.execute("SELECT * FROM prompt WHERE statut = 'ACTIVER'")
     prompts = cur.fetchall()
     cur.close()
     conn.close()
@@ -32,7 +32,7 @@ def search_prompts():
     keyword = request.args.get('q', '')
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
-    cur.execute("SELECT * FROM prompt WHERE statut = 'Activer' AND description ILIKE %s", (f'%{keyword}%',))
+    cur.execute("SELECT * FROM prompt WHERE statut = 'ACTIVER' AND description ILIKE %s", (f'%{keyword}%',))
     prompts = cur.fetchall()
     cur.close()
     conn.close()
@@ -42,11 +42,11 @@ def search_prompts():
 def purchase_prompt(id):
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
-    cur.execute("SELECT * FROM prompt WHERE id = %s AND statut = 'Activer'", (id,))
+    cur.execute("SELECT * FROM prompt WHERE id = %s AND statut = 'ACTIVER'", (id,))
     prompt = cur.fetchone()
     cur.close()
     conn.close()
     
     if prompt:
-        return jsonify({'message': 'Prompt purchased', 'prompt': prompt}), 200
+        return jsonify({'message': 'Prompt acheté', 'prompt': prompt}), 200
     return jsonify({'message': 'Prompt introuvable ou non activé'}), 404

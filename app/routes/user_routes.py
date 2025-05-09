@@ -39,12 +39,12 @@ def create_prompt():
     prompt_id = str(uuid.uuid4())
     cur.execute(
         "INSERT INTO prompt (id, description, statut, prix, user_id, vote) VALUES (%s, %s, %s, %s, %s, %s)",
-        (prompt_id, data['description'], 'En attente', 1000, identity['id'], 0)
+        (prompt_id, data['description'], 'EN_ATTENTE', 1000, identity['id'], 0)
     )
     conn.commit()
     cur.close()
     conn.close()
-    return jsonify({'message': 'Prompt created', 'prompt_id': prompt_id}), 201
+    return jsonify({'message': 'Prompt crée', 'prompt_id': prompt_id}), 201
 
 @user_bp.route('/prompts/<id>/delete-request', methods=['PUT'])
 @jwt_required()
@@ -55,19 +55,19 @@ def request_prompt_deletion(id):
     
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
-    cur.execute("SELECT * FROM Prompts WHERE id = %s AND user_id = %s", (id, identity['id']))
+    cur.execute("SELECT * FROM prompt WHERE id = %s AND user_id = %s", (id, identity['id']))
     prompt = cur.fetchone()
     
     if not prompt:
         cur.close()
         conn.close()
-        return jsonify({'message': 'Prompt not found or not owned'}), 404
+        return jsonify({'message': 'Prompt introuvable ou pas accees'}), 404
     
-    cur.execute("UPDATE Prompts SET state = 'À supprimer' WHERE id = %s", (id,))
+    cur.execute("UPDATE prompt SET statut = 'A_SUPPRIMER' WHERE id = %s", (id,))
     conn.commit()
     cur.close()
     conn.close()
-    return jsonify({'message': 'Prompt deletion requested'}), 200
+    return jsonify({'message': 'Prompt suppression demandee'}), 200
 
 @user_bp.route('/prompts/<id>/vote', methods=['POST'])
 @jwt_required()
@@ -78,33 +78,33 @@ def vote_prompt(id):
     
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
-    cur.execute("SELECT * FROM Prompts WHERE id = %s AND user_id != %s", (id, identity['id']))
+    cur.execute("SELECT * FROM prompt WHERE id = %s AND user_id != %s", (id, identity['id']))
     prompt = cur.fetchone()
     
     if not prompt:
         cur.close()
         conn.close()
-        return jsonify({'message': 'Prompt not found or own prompt'}), 404
+        return jsonify({'message': 'Prompt introuvable ou pas acces'}), 404
     
-    cur.execute("SELECT * FROM Users WHERE id = %s", (identity['id'],))
+    cur.execute("SELECT * FROM user WHERE id = %s", (identity['id'],))
     user = cur.fetchone()
     
     points = 2 if user['group_id'] == prompt['user_id'] else 1
     cur.execute(
-        "INSERT INTO Votes (prompt_id, user_id, vote_date) VALUES (%s, %s, %s)",
+        "INSERT INTO vote (prompt_id, user_id, vote_date) VALUES (%s, %s, %s)",
         (id, identity['id'], datetime.now())
     )
     
-    cur.execute("SELECT SUM(CASE WHEN u.group_id = p.user_id THEN 2 ELSE 1 END) as total_points FROM Votes v JOIN Users u ON v.user_id = u.id JOIN Prompts p ON v.prompt_id = p.id WHERE v.prompt_id = %s", (id,))
+    cur.execute("SELECT SUM(CASE WHEN u.group_id = p.user_id THEN 2 ELSE 1 END) as total_points FROM vote v JOIN user u ON v.user_id = u.id JOIN prompt p ON v.prompt_id = p.id WHERE v.prompt_id = %s", (id,))
     total_points = cur.fetchone()['total_points'] or 0
     
     if total_points >= 6:
-        cur.execute("UPDATE Prompts SET state = 'Activer' WHERE id = %s", (id,))
+        cur.execute("UPDATE prompt SET statut = 'ACRIVER' WHERE id = %s", (id,))
     
     conn.commit()
     cur.close()
     conn.close()
-    return jsonify({'message': 'Vote recorded'}), 200
+    return jsonify({'message': 'Vote enregistrer'}), 200
 
 @user_bp.route('/prompts/<id>/rate', methods=['POST'])
 @jwt_required()
@@ -116,36 +116,36 @@ def rate_prompt(id):
     data = request.get_json()
     rating = data.get('rating')
     if not (-10 <= rating <= 10):
-        return jsonify({'message': 'Rating must be between -10 and 10'}), 400
+        return jsonify({'message': 'La note doit etre comprise entre -10 et 10'}), 400
     
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
-    cur.execute("SELECT * FROM Prompts WHERE id = %s AND user_id != %s AND state = 'Activer'", (id, identity['id']))
+    cur.execute("SELECT * FROM prompt WHERE id = %s AND user_id != %s AND statut = 'ACTIVER'", (id, identity['id']))
     prompt = cur.fetchone()
     
     if not prompt:
         cur.close()
         conn.close()
-        return jsonify({'message': 'Prompt not found, own prompt, or not activated'}), 404
+        return jsonify({'message': 'Prompt introuvable ou non activé'}), 404
     
-    cur.execute("SELECT * FROM Users WHERE id = %s", (identity['id'],))
+    cur.execute("SELECT * FROM user WHERE id = %s", (identity['id'],))
     user = cur.fetchone()
     
     weight = 0.6 if user['group_id'] == prompt['user_id'] else 0.4
     weighted_rating = rating * weight
     
     cur.execute(
-        "INSERT INTO Ratings (prompt_id, user_id, rating, rating_date) VALUES (%s, %s, %s, %s)",
+        "INSERT INTO notation (prompt_id, user_id, valeur_note, rating_date) VALUES (%s, %s, %s, %s)",
         (id, identity['id'], weighted_rating, datetime.now())
     )
     
-    cur.execute("SELECT AVG(rating) as avg_rating FROM Ratings WHERE prompt_id = %s", (id,))
+    cur.execute("SELECT AVG(valeur_note) as avg_rating FROM notation WHERE prompt_id = %s", (id,))
     avg_rating = cur.fetchone()['avg_rating'] or 0
     
     new_price = 1000 * (1 + avg_rating)
-    cur.execute("UPDATE Prompts SET price = %s, rating = %s WHERE id = %s", (new_price, avg_rating, id))
+    cur.execute("UPDATE prompt SET prix = %s, valeur_note = %s WHERE id = %s", (new_price, avg_rating, id))
     
     conn.commit()
     cur.close()
     conn.close()
-    return jsonify({'message': 'Rating recorded'}), 200
+    return jsonify({'message': 'Notation enregistre'}), 200

@@ -14,7 +14,7 @@ def admin_login():
     
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
-    cur.execute("SELECT * FROM Users WHERE username = %s AND password = %s AND role = 'admin'", (username, password))
+    cur.execute("SELECT * FROM user WHERE username = %s AND password = %s AND role = 'admin'", (username, password))
     user = cur.fetchone()
     cur.close()
     conn.close()
@@ -36,13 +36,13 @@ def create_user():
     conn = get_db_connection()
     cur = conn.cursor()
     cur.execute(
-        "INSERT INTO Users (id, username, password, role, group_id) VALUES (%s, %s, %s, %s, %s)",
+        "INSERT INTO user (id, username, password, role, group_id) VALUES (%s, %s, %s, %s, %s)",
         (str(uuid.uuid4()), data['username'], data['password'], data['role'], data.get('group_id'))
     )
     conn.commit()
     cur.close()
     conn.close()
-    return jsonify({'message': 'User created'}), 201
+    return jsonify({'message': 'Utilisateur crée'}), 201
 
 @admin_bp.route('/users', methods=['GET'])
 @jwt_required()
@@ -53,7 +53,7 @@ def list_users():
     
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
-    cur.execute("SELECT * FROM Users")
+    cur.execute("SELECT * FROM user")
     users = cur.fetchall()
     cur.close()
     conn.close()
@@ -70,7 +70,7 @@ def update_user(id):
     conn = get_db_connection()
     cur = conn.cursor()
     cur.execute(
-        "UPDATE Users SET username = %s, password = %s, role = %s, group_id = %s WHERE id = %s",
+        "UPDATE user SET username = %s, password = %s, role = %s, group_id = %s WHERE id = %s",
         (data['username'], data['password'], data['role'], data.get('group_id'), id)
     )
     conn.commit()
@@ -87,11 +87,11 @@ def delete_user(id):
     
     conn = get_db_connection()
     cur = conn.cursor()
-    cur.execute("DELETE FROM Users WHERE id = %s", (id,))
+    cur.execute("DELETE FROM user WHERE id = %s", (id,))
     conn.commit()
     cur.close()
     conn.close()
-    return jsonify({'message': 'User deleted'}), 200
+    return jsonify({'message': 'Utilisateur supprimé'}), 200
 
 @admin_bp.route('/groups', methods=['POST'])
 @jwt_required()
@@ -104,13 +104,13 @@ def create_group():
     conn = get_db_connection()
     cur = conn.cursor()
     cur.execute(
-        "INSERT INTO Groups (id, name) VALUES (%s, %s)",
-        (str(uuid.uuid4()), data['name'])
+        "INSERT INTO group (id, nom_group) VALUES (%s, %s)",
+        (str(uuid.uuid4()), data['nom_group'])
     )
     conn.commit()
     cur.close()
     conn.close()
-    return jsonify({'message': 'Group created'}), 201
+    return jsonify({'message': 'Group cree'}), 201
 
 @admin_bp.route('/groups', methods=['GET'])
 @jwt_required()
@@ -121,7 +121,7 @@ def list_groups():
     
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
-    cur.execute("SELECT * FROM Groups")
+    cur.execute("SELECT * FROM group")
     groups = cur.fetchall()
     cur.close()
     conn.close()
@@ -137,7 +137,7 @@ def update_group(id):
     data = request.get_json()
     conn = get_db_connection()
     cur = conn.cursor()
-    cur.execute("UPDATE Groups SET name = %s WHERE id = %s", (data['name'], id))
+    cur.execute("UPDATE group SET nom_group = %s WHERE id = %s", (data['nom_group'], id))
     conn.commit()
     cur.close()
     conn.close()
@@ -152,11 +152,11 @@ def delete_group(id):
     
     conn = get_db_connection()
     cur = conn.cursor()
-    cur.execute("DELETE FROM Groups WHERE id = %s", (id,))
+    cur.execute("DELETE FROM group WHERE id = %s", (id,))
     conn.commit()
     cur.close()
     conn.close()
-    return jsonify({'message': 'Group deleted'}), 200
+    return jsonify({'message': 'Group supprimé'}), 200
 
 @admin_bp.route('/prompts', methods=['GET'])
 @jwt_required()
@@ -167,7 +167,7 @@ def list_all_prompts():
     
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
-    cur.execute("SELECT * FROM Prompts")
+    cur.execute("SELECT * FROM prompt")
     prompts = cur.fetchall()
     cur.close()
     conn.close()
@@ -182,11 +182,11 @@ def validate_prompt(id):
     
     conn = get_db_connection()
     cur = conn.cursor()
-    cur.execute("UPDATE Prompts SET state = 'Activer' WHERE id = %s", (id,))
+    cur.execute("UPDATE prompt SET statut = 'ACTIVER' WHERE id = %s", (id,))
     conn.commit()
     cur.close()
     conn.close()
-    return jsonify({'message': 'Prompt validated'}), 200
+    return jsonify({'message': 'Prompt validé'}), 200
 
 @admin_bp.route('/prompts/<id>/review', methods=['PUT'])
 @jwt_required()
@@ -197,11 +197,11 @@ def review_prompt(id):
     
     conn = get_db_connection()
     cur = conn.cursor()
-    cur.execute("UPDATE Prompts SET state = 'À revoir' WHERE id = %s", (id,))
+    cur.execute("UPDATE prompt SET statut = 'A_REVOIR' WHERE id = %s", (id,))
     conn.commit()
     cur.close()
     conn.close()
-    return jsonify({'message': 'Prompt set to review'}), 200
+    return jsonify({'message': 'Prompt mis à REVOIR'}), 200
 
 @admin_bp.route('/prompts/<id>', methods=['DELETE'])
 @jwt_required()
@@ -212,8 +212,8 @@ def delete_prompt(id):
     
     conn = get_db_connection()
     cur = conn.cursor()
-    cur.execute("DELETE FROM Prompts WHERE id = %s", (id,))
+    cur.execute("DELETE FROM prompt WHERE id = %s", (id,))
     conn.commit()
     cur.close()
     conn.close()
-    return jsonify({'message': 'Prompt deleted'}), 200
+    return jsonify({'message': 'Prompt supprimé'}), 200
