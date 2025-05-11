@@ -1,6 +1,5 @@
 import psycopg2
-from flask import g
-from config import Config
+from app.config import Config
 
 def get_db_connection():
     conn = psycopg2.connect(

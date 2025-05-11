@@ -8,12 +8,12 @@ class Config:
     DEBUG = os.getenv('FLASK_ENV') == 'development'
        
   # Configuration PostgreSQL
-    POSTGRES_HOST = os.getenv('POSTGRES_HOST', 'localhost')
-    POSTGRES_USER = os.getenv('POSTGRES_USER', 'alla')
-    POSTGRES_PASSWORD = os.getenv('POSTGRES_PASSWORD', 'passer123')
-    POSTGRES_PORT = int(os.getenv('POSTGRES_PORT', 5432))
-    DBNAME = os.getenv('DBNAME', 'gestion_prompt')
+    DB_HOST = os.getenv('DB_HOST', 'localhost')
+    DB_USER = os.getenv('DB_USER', 'alla')
+    DB_PASSWORD = os.getenv('DB_PASSWORD', 'passer123')
+    DB_PORT = int(os.getenv('DB_PORT', 5432))
+    DB_NAME = os.getenv('DB_NAME', 'gestion_prompt')
 
-    DATABASE_URL = f"dbname={DBNAME} user={POSTGRES_USER} password={POSTGRES_PASSWORD} host={POSTGRES_HOST}"
+    DATABASE_URL = f"dbname={DB_NAME} user={DB_USER} password={DB_PASSWORD} host={DB_HOST}"
 
     JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "dev_secret")

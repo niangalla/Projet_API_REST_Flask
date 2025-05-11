@@ -1,32 +1,33 @@
-CREATE TABLE IF NOT EXISTS group (
+CREATE TABLE IF NOT EXISTS groupe (
     id SERIAL PRIMARY KEY,
-    nom_group VARCHAR(100) NOT NULL
+    nom_groupe VARCHAR(100) NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS user (
+CREATE TABLE IF NOT EXISTS users (
     id SERIAL PRIMARY KEY,
     username VARCHAR(50) UNIQUE ,
+    prenom VARCHAR(50),
+    nom VARCHAR(50),
     password VARCHAR(100) ,
-    role VARCHAR(10) NOT NULL CHECK (role IN ('admin', 'visiteur', 'user')),
+    role VARCHAR(50) NOT NULL CHECK (role IN ('Administrateur', 'Utilisateur')),
     group_id INT REFERENCES group(id)
 );
 
 CREATE TABLE IF NOT EXISTS prompt (
     id SERIAL PRIMARY KEY,
     description TEXT NOT NULL,
-    prix FLOAT DEFAULT 1000,
+    prix INT DEFAULT 1000,
     statut VARCHAR(20) NOT NULL DEFAULT 'EN_ATTENTE' CHECK (statut IN ('EN_ATTENTE', 'ACTIVER', 'A_REVOIR', 'RAPPEL', 'A_SUPPRIMER')),
     user_id INT REFERENCES users(id),
-    average_rating FLOAT DEFAULT 0,
+    moyenne_note FLOAT DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    last_state_change TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
 );
 
 CREATE TABLE IF NOT EXISTS vote (
     prompt_id INT REFERENCES prompt(id),
     user_id INT REFERENCES user(id),
-    vote_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    vote_date Date,
+    points INT NOT NULL,
     PRIMARY KEY (prompt_id, user_id)
 );
 
@@ -41,6 +42,11 @@ CREATE TABLE IF NOT EXISTS notation (
 CREATE TABLE IF NOT EXISTS achat (
     id SERIAL PRIMARY KEY,
     prompt_id INT REFERENCES prompt(id),
-    prix FLOAT,
-    date_achat Date
+    prix INT,
+    date_achat Date,
+    source VARCHAR(50)
 );
+
+INSERT INTO users (username,prenom, nom, password, role, group_id) VALUES
+('admin@plateforme.sn','John','Doe', 'admin123', 'Administrateur', 1);
+
