@@ -47,6 +47,9 @@ CREATE TABLE IF NOT EXISTS achat (
     source VARCHAR(50)
 );
 
+INSERT INTO groupe (nom_groupe) VALUES
+('Developpeurs Web');
+
 INSERT INTO users (username,prenom, nom, password, role, group_id) VALUES
 ('admin@plateforme.sn','John','Doe', 'admin123', 'Administrateur', 1);
 

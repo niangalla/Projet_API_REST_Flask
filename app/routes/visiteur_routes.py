@@ -59,7 +59,7 @@ def achat_prompt(id):
         conn.close()
         return jsonify({'message': 'Prompt introuvable ou non activé'}), 404
 
-    # Ici on recupere l'adresse ip du visiteur pour avoir une trace
+    # Ici on recupere l'adresse ip du visiteur pour avoir une trace (autre solution possible c'est de stocker leur email)
     visiteur_ip = request.remote_addr
 
     # Insérer l'achat avec une trace visiteur

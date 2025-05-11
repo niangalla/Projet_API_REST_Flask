@@ -13,8 +13,7 @@ def create_app(config_class=Config):
     
     # Enregistrement des blueprints
     from app.routes.main import main_bp
-    from app.routes import auth_routes, admin_routes, user_routes, visiteur_routes
-    app.register_blueprint(auth_routes.bp)
+    from app.routes import admin_routes, user_routes, visiteur_routes
     app.register_blueprint(admin_routes.admin_bp)
     app.register_blueprint(user_routes.user_bp)
     app.register_blueprint(visiteur_routes.visitor_bp)

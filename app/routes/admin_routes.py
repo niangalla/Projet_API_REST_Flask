@@ -14,13 +14,39 @@ def hash_password(password):
     password_bytes = password.encode('utf-8')
     salt = bcrypt.gensalt()
     hashed = bcrypt.hashpw(password_bytes, salt)
-    return hashed.decode('utf-8')  # Stocké comme chaîne de caractères en base de données
+    return hashed.decode('utf-8')  # Mot de passe robuste qu'on va stocker
 
 # Fonction pour vérifier un mot de passe
 def check_password(password, hashed_password):
     password_bytes = password.encode('utf-8')
     hashed_bytes = hashed_password.encode('utf-8')
     return bcrypt.checkpw(password_bytes, hashed_bytes)
+
+@admin_bp.route('/admin/create', methods=['POST'])
+# Route facultative pour commencer avec la création d'un administrateur
+def create_admin():
+    data = request.get_json()
+    
+    # Hachage du mot de passe avant stockage
+    hashed_password = hash_password(data['password'])
+    
+    conn = get_db_connection()
+    cur = conn.cursor()
+    
+    try:
+        cur.execute(
+            "INSERT INTO users (username, prenom, nom, password, role, group_id) VALUES (%s, %s, %s, %s, %s, %s)",
+            (data['username'], data['prenom'], data['nom'], hashed_password, 'Administrateur', data.get('group_id'))
+        )
+        conn.commit()
+        cur.close()
+        conn.close()
+        return jsonify({'message': 'Administrateur créé'}), 201
+    except Exception as e:
+        conn.rollback()
+        cur.close()
+        conn.close()
+        return jsonify({'message': f'Erreur lors de la création: {str(e)}'}), 500
 
 @admin_bp.route('/admin/login', methods=['POST'])
 def admin_login():
@@ -32,13 +58,13 @@ def admin_login():
     cur = conn.cursor(cursor_factory=RealDictCursor)
     
     # On récupère l'utilisateur uniquement par son nom d'utilisateur
-    cur.execute("SELECT * FROM users WHERE username = %s AND password = %s AND role = 'Administrateur'", (username, password))
+    cur.execute("SELECT * FROM users WHERE username = %s AND role = 'Administrateur'", (username, ))
     user = cur.fetchone()
     cur.close()
     conn.close()
     
     # Vérification du mot de passe avec bcrypt
-    if user :
+    if user and check_password(password, user['password']):
         access_token = create_access_token(
         identity=str(user['id']),
         additional_claims={"role": user["role"]}
@@ -153,7 +179,6 @@ def delete_user(id):
 @admin_bp.route('/groupes', methods=['POST'])
 @jwt_required()
 def create_group():
-    # claims = get_jwt_identity()  # Get JWT claims
     role = get_jwt().get("role")
     if role!= 'Administrateur':
         return jsonify({'message': 'Accès administrateur requis'}), 403
@@ -163,7 +188,6 @@ def create_group():
     cur = conn.cursor()
     
     try:
-        # Utiliser le nom correct de la table "groupe"
         cur.execute(
             'INSERT INTO groupe (nom_groupe) VALUES (%s)',
             (data['nom_groupe'],)
@@ -189,7 +213,6 @@ def list_groups():
     cur = conn.cursor(cursor_factory=RealDictCursor)
     
     try:
-        # Utiliser le nom correct de la table "groupe"
         cur.execute('SELECT * FROM groupe')
         groups = cur.fetchall()
         cur.close()
@@ -212,7 +235,6 @@ def update_group(id):
     cur = conn.cursor()
     
     try:
-        # Utiliser le nom correct de la table "groupe"
         cur.execute('UPDATE groupe SET nom_groupe = %s WHERE id = %s', (data['nom_groupe'], id))
         conn.commit()
         cur.close()
@@ -235,7 +257,6 @@ def delete_group(id):
     cur = conn.cursor()
     
     try:
-        # Utiliser le nom correct de la table "groupe"
         cur.execute('DELETE FROM groupe WHERE id = %s', (id,))
         conn.commit()
         cur.close()
