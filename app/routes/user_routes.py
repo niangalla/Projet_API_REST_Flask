@@ -4,7 +4,6 @@ from app.models.database import get_db_connection
 from psycopg2.extras import RealDictCursor
 from flask_jwt_extended import create_access_token
 import bcrypt
-import uuid
 from datetime import datetime
 
 user_bp = Blueprint('Utilisateur', __name__)
@@ -86,54 +85,52 @@ def request_prompt_deletion(id):
 @user_bp.route('/prompts/<id>/vote', methods=['POST'])
 @jwt_required()
 def vote_prompt(id):
-    from datetime import datetime
-
     role = get_jwt().get("role")
     user_id = int(get_jwt_identity()) 
+
     if role != 'Utilisateur':
         return jsonify({'message': 'Accès en tant que Utilisateur requis'}), 403
 
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
 
+    # Vérifier que le prompt existe, est EN_ATTENTE, et ne vient pas de l'utilisateur connecté
     cur.execute("SELECT * FROM prompt WHERE id = %s AND user_id != %s AND statut = %s", (id, user_id, "EN_ATTENTE"))
     prompt = cur.fetchone()
 
     if not prompt:
         cur.close()
         conn.close()
-        return jsonify({'message': 'Prompt introuvable ou accès refusé'}), 404
+        return jsonify({'message': 'Prompt introuvable ou vote refusé'}), 404
 
-    # Récupérer le groupe du votant
+    # Vérifier que l'utilisateur n'a pas déjà voté pour ce prompt
+    cur.execute("SELECT 1 FROM vote WHERE prompt_id = %s AND user_id = %s", (id, user_id))
+    if cur.fetchone():
+        cur.close()
+        conn.close()
+        return jsonify({'message': 'Vous avez déjà voté pour ce prompt'}), 400
+
+    # Récupérer les groupes
     cur.execute("SELECT group_id FROM users WHERE id = %s", (user_id,))
-    groupe_votant = cur.fetchone()
+    groupe_votant = cur.fetchone()['group_id']
 
-    # Récupérer le groupe du créateur du prompt
     cur.execute("SELECT group_id FROM users WHERE id = %s", (prompt['user_id'],))
-    groupe_createur_prompt = cur.fetchone()
+    groupe_createur = cur.fetchone()['group_id']
 
-    # Ici on va calculer les points
-    points = 2 if groupe_votant['group_id'] == groupe_createur_prompt['group_id'] else 1
+    # Calcul des points
+    points = 2 if groupe_votant == groupe_createur else 1
 
-    # Enregistrement du vote
+    # Enregistrer le vote
     cur.execute(
         "INSERT INTO vote (prompt_id, user_id, vote_date, points) VALUES (%s, %s, %s, %s)",
         (id, user_id, datetime.now(), points)
     )
 
-    # Calcul du total des points pour ce prompt
-    cur.execute(
-        "SELECT SUM(CASE WHEN u.group_id = uc.group_id THEN 2 ELSE 1 END) as total_points "
-        "FROM vote v "
-        "JOIN users u ON v.user_id = u.id "
-        "JOIN prompt p ON v.prompt_id = p.id "
-        "JOIN users uc ON p.user_id = uc.id "
-        "WHERE v.prompt_id = %s",
-        (id,)
-    )
+    # Calcul des points cumulés pour le prompt
+    cur.execute("SELECT SUM(points) as total_points FROM vote WHERE prompt_id = %s", (id,))
     total_points = cur.fetchone()['total_points'] or 0
 
-    # Changement de statut prompt
+    # Activer le prompt si total points atteint 6
     if total_points >= 6:
         cur.execute("UPDATE prompt SET statut = 'ACTIVER' WHERE id = %s", (id,))
 
@@ -142,7 +139,6 @@ def vote_prompt(id):
     conn.close()
 
     return jsonify({'message': 'Vote enregistré'}), 200
-
 
 @user_bp.route('/prompts/<id>/noter', methods=['POST'])
 @jwt_required()
@@ -153,8 +149,8 @@ def noter_prompt(id):
         return jsonify({'message': 'Accés en tant que Utilisateur requis'}), 403
     
     data = request.get_json()
-    rating = data.get('rating')
-    if not (-10 <= rating <= 10):
+    note = data.get('valeur_note')
+    if not (-10 <= note <= 10):
         return jsonify({'message': 'La note doit etre comprise entre -10 et 10'}), 400
     
     conn = get_db_connection()
@@ -167,22 +163,33 @@ def noter_prompt(id):
         conn.close()
         return jsonify({'message': 'Prompt introuvable ou non activé'}), 404
     
-    cur.execute("SELECT * FROM user WHERE id = %s", (user_id,))
-    user = cur.fetchone()
+    # Vérifier que l'utilisateur n'a pas déjà noté ce prompt
+    cur.execute("SELECT 1 FROM notation WHERE prompt_id = %s AND user_id = %s", (id, user_id))
+    if cur.fetchone():
+        cur.close()
+        conn.close()
+        return jsonify({'message': 'Vous avez déjà noté ce prompt'}), 400
     
-    weight = 0.6 if user['group_id'] == prompt['user_id'] else 0.4
-    weighted_rating = rating * weight
+    # Récupérer les groupes
+    cur.execute("SELECT group_id FROM users WHERE id = %s", (user_id,))
+    groupe_votant = cur.fetchone()['group_id']
+
+    cur.execute("SELECT group_id FROM users WHERE id = %s", (prompt['user_id'],))
+    groupe_createur = cur.fetchone()['group_id']
+    
+    poids = 0.6 if groupe_votant == groupe_createur else 0.4
+    poids_note = note * poids
     
     cur.execute(
         "INSERT INTO notation (prompt_id, user_id, valeur_note, date_note) VALUES (%s, %s, %s, %s)",
-        (id, user_id, weighted_rating, datetime.now())
+        (id, user_id, poids_note, datetime.now())
     )
     
     cur.execute("SELECT AVG(valeur_note) as moyenne_note FROM notation WHERE prompt_id = %s", (id,))
     moyenne_note = cur.fetchone()['moyenne_note'] or 0
     
-    new_price = 1000 * (1 + moyenne_note)
-    cur.execute("UPDATE prompt SET prix = %s, moyenne_note = %s WHERE id = %s", (new_price, moyenne_note, id))
+    nouveau_prix = 1000 * (1 + moyenne_note)
+    cur.execute("UPDATE prompt SET prix = %s, moyenne_note = %s WHERE id = %s", (nouveau_prix, moyenne_note, id))
     
     conn.commit()
     cur.close()

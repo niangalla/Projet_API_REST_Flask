@@ -18,7 +18,7 @@ def get_prompt(id):
         return jsonify(prompt), 200
     return jsonify({'message': 'Prompt introuvable ou non activé'}), 404
 
-@visitor_bp.route('/prompts', methods=['GET'])
+@visitor_bp.route('/prompts/activated', methods=['GET'])
 def list_activated_prompts():
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
@@ -43,7 +43,7 @@ def search_prompts():
 
     if prompts:
         return jsonify(prompts), 200
-    return jsonify({'message': 'Aucun prompt trouvé avec ces mots clés'}); 404
+    return jsonify({'message': 'Aucun prompt activé trouvé avec ces mots clés'}); 404
 
 @visitor_bp.route('/prompts/<id>/achat', methods=['POST'])
 def achat_prompt(id):
@@ -72,4 +72,4 @@ def achat_prompt(id):
     cur.close()
     conn.close()
 
-    return jsonify({'message': 'Prompt acheté', 'prompt': prompt}), 200
+    return jsonify({'message': 'Prompt acheté', 'details prompt': prompt}), 200
