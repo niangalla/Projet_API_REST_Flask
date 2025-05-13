@@ -58,6 +58,32 @@ def create_prompt():
     conn.close()
     return jsonify({'message': 'Prompt crée'}), 201
 
+@user_bp.route('/prompts/<id>', methods=['PUT'])
+@jwt_required()
+def update_prompt(id):
+    role = get_jwt().get("role")
+    user_id = int(get_jwt_identity()) 
+    if role!= 'Utilisateur':
+        return jsonify({'message': 'User access required'}), 403
+    
+    data = request.get_json()
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM prompt WHERE id = %s AND user_id = %s AND statut = %s", (id, user_id, "A_REVOIR"))
+    my_prompt = cur.fetchone()
+
+    if not my_prompt:
+        cur.close()
+        conn.close()
+        return jsonify({'message': 'Prompt introuvable ou pas accees'}), 404
+    
+    # On fait les modifications aprés on remet l'etat à EN_ATTENTE
+    cur.execute("UPDATE prompt SET description = %s AND statut = %s WHERE id = %s", (data['description'], 'EN_ATTENTE', id)) 
+    conn.commit()
+    cur.close()
+    conn.close()
+    return jsonify({'message': 'Prompt modifié'}), 201
+
 @user_bp.route('/prompts/<id>/delete-request', methods=['PUT'])
 @jwt_required()
 def request_prompt_deletion(id):
@@ -77,6 +103,7 @@ def request_prompt_deletion(id):
         return jsonify({'message': 'Prompt introuvable ou pas accees'}), 404
     
     cur.execute("UPDATE prompt SET statut = 'A_SUPPRIMER' WHERE id = %s", (id,))
+
     conn.commit()
     cur.close()
     conn.close()
@@ -95,7 +122,7 @@ def vote_prompt(id):
     cur = conn.cursor(cursor_factory=RealDictCursor)
 
     # Vérifier que le prompt existe, est EN_ATTENTE, et ne vient pas de l'utilisateur connecté
-    cur.execute("SELECT * FROM prompt WHERE id = %s AND user_id != %s AND statut = %s", (id, user_id, "EN_ATTENTE"))
+    cur.execute("SELECT * FROM prompt WHERE (id = %s AND user_id != %s) AND (statut = %s OR statut = %s)", (id, user_id, "EN_ATTENTE", "RAPPEL"))
     prompt = cur.fetchone()
 
     if not prompt:
