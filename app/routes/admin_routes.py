@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify
-from flask_jwt_extended import jwt_required, get_jwt_identity,get_jwt
+from flask_jwt_extended import jwt_required,get_jwt
 from app.models.database import get_db_connection
 from psycopg2.extras import RealDictCursor
 from flask_jwt_extended import create_access_token
@@ -257,6 +257,7 @@ def delete_group(id):
     cur = conn.cursor()
     
     try:
+
         cur.execute('DELETE FROM groupe WHERE id = %s', (id,))
         conn.commit()
         cur.close()
